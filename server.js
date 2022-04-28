@@ -53,6 +53,8 @@ async function getSetCache(key, callback) {
 	const newData = await callback();
 
 	await redisClient.setEx(key, DEFAULT_EXPIRATION, JSON.stringify(newData));
+
+	return newData;
 }
 
 app.listen(3001);
