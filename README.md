@@ -1,2 +1,2 @@
-# redis
+# Redis
 A Basic Redis App
