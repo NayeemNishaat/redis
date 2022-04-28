@@ -16,37 +16,44 @@ const app = express();
 app.use(cors());
 
 app.get("/photoes", async (req, res) => {
-	const photoes = await redisClient.get("photoes");
+	const albumId = req.query.albumId;
+	const photoes = await getSetCache(
+		`photoes?albumId=${albumId}`,
+		async () => {
+			// Point: Cache
+			const result = await fetch(
+				`https://jsonplaceholder.typicode.com/photos?albumId=${albumId}`
+			);
 
-	if (photoes !== null) {
-		res.status(200).json(JSON.parse(photoes));
-	} else {
-		// Point: Cache
-		const result = await fetch(
-			`https://jsonplaceholder.typicode.com/photos`
-		);
-
-		const data = await result.json();
-
-		await redisClient.setEx(
-			"photoes",
-			DEFAULT_EXPIRATION,
-			JSON.stringify(data)
-		);
-
-		res.status(200).json(data);
-	}
-});
-
-app.get("/photos:id", async (req, res) => {
-	const result = await fetch(
-		`https://jsonplaceholder.typicode.com/photos/${req.params.id}`
+			return await result.json();
+		}
 	);
 
-	const data = result.json();
-
-	res.status(200).json(data);
+	res.status(200).json(photoes);
 });
+
+app.get("/photoes/:id", async (req, res) => {
+	const photo = await getSetCache(`photoes:${req.params.id}`, async () => {
+		// Point: Cache
+		const result = await fetch(
+			`https://jsonplaceholder.typicode.com/photos/${req.params.id}`
+		);
+
+		return await result.json();
+	});
+	console.log(photo);
+	res.status(200).json(photo);
+});
+
+async function getSetCache(key, callback) {
+	const data = await redisClient.get(key);
+
+	if (data) return JSON.parse(data);
+
+	const newData = await callback();
+
+	await redisClient.setEx(key, DEFAULT_EXPIRATION, JSON.stringify(newData));
+}
 
 app.listen(3001);
 
